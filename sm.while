@@ -1,0 +1,8 @@
+while x0 != 0 {
+    do_something;
+    x1 < 2;
+    x2 < x1 + x3;
+}
+procedure something {
+    whosup
+}

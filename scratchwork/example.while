@@ -1,0 +1,57 @@
+// Konsolen Argumente werden in x0 ... xk eingelesen
+// Wertzuweisungen für Variablen. Es gibt nur eine Art von Datentyp,
+// unbeschränkt große positive Ganzzahlen. Variablen können einen beliebigen
+// Namen haben, der aber mit einem Buchstaben beginnen muss.
+
+x0 <- 12; // x0 wird der Wert 12 zugewiesen
+
+// Rechenoperationen. Es gibt zwei Arten von Rechenoperationen.
+
+x0 <- x1 + x2;  // Addition
+x0 <- x1 - x2;  // Subtraktion, wobei x0 <- 0 bei x2 > x1
+
+// While Schleifen. Es gibt genau eine Art von while-Schleife.
+
+while x0 != 0 { // Eine beliebige Variable gefolt von der Bedingung != 0.
+                // Der Code in der Schleife wird also so lange ausgeführt wie
+                // x0 einen anderen Wert als 0 hat
+
+    ...         // Der Code der ausgeführt werden soll
+
+}
+
+// Prozeduren. Code kann an einer Stelle definiert und wiederverwendet werden.
+// So kann beispielsweise x0 = x1 * x2 berechnet werden
+
+procedure mult {
+    x0 <- 0;
+
+    while x1 != 0 {
+        x0 <- x0 + x2;
+        x1 <- x1 - 1;
+    }
+}
+
+// Es gibt nur einen globalen Scope. Daher hat mult auch keinen Rückgabewert
+// und keine Parameter. Die Werte werden einfach vor dem Aufruf der Prozeduren
+// in die Variablen x0 und x1 geladen.
+
+// Prozeduren müssen auf äußerster Ebene des Programms definiert werden.
+// Sie können dann an späteren Stellend es Programms aufgerufen werden.
+
+x1 <- 10;
+x2 <- 5;
+mult;        // Nach diesem Statement hat x0 den Wert 50
+
+// Es können auch weitere Dateien eingebunden werden.
+
+use ./std.while;
+
+// Bindet beispielsweise die Standard Bibliothek ein, wo Dinge wie
+// `mult` vordefiniert sind. Das Programm wird aber weiterhin von oben
+// nach unten durchgearbeitet. An der Stelle des use Befehls wird also alles
+// was in ./std.while steht ausgeführt und alle Prozeduren geladen. Erst danach
+// wird mit dem aufrufenden Programm fortgefahren.
+
+// Ausgabe. Wenn das Programm vollständig durchlaufen wurde und hält, wird der Wert
+// von x0 auf die Konsole ausgegeben.
