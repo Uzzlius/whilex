@@ -4,7 +4,9 @@ use std::fs;
 
 use num_bigint::BigUint;
 mod error;
+mod grammar;
 mod lexer;
+mod parser;
 
 // The configuration struct represents everything the user entered, being
 // the path to a `.while` file and an arbitrary amount of initial values.
@@ -45,14 +47,22 @@ pub fn run(config: Config) -> Result<(), Error> {
     };
 
     let mut lexer: Lexer = Lexer::new(&file_contents);
-    let tokens: Vec<Token> = lexer.by_ref().collect();
 
-    for token in tokens {
+    for token in &mut lexer {
         println!("{:?}", token);
     }
 
-    for error in lexer.errors {
+    for error in &mut lexer.errors {
         eprintln!("{}", error);
+    }
+
+    let mut parser = parser::Parser::new(Lexer::new(&file_contents));
+
+    let ast = parser.expression();
+
+    match ast {
+        Ok(o) => println!("{:?}", o),
+        Err(err) => eprintln!("{}", err),
     }
 
     Ok(())

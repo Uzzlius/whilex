@@ -3,12 +3,12 @@
 // unbeschränkt große positive Ganzzahlen. Variablen können einen beliebigen
 // Namen haben, der aber mit einem Buchstaben beginnen muss.
 
-x0 <- 12; // x0 wird der Wert 12 zugewiesen
+x0 < 12; // x0 wird der Wert 12 zugewiesen
 
 // Rechenoperationen. Es gibt zwei Arten von Rechenoperationen.
 
-x0 <- x1 + x2;  // Addition
-x0 <- x1 - x2;  // Subtraktion, wobei x0 <- 0 bei x2 > x1
+x0 < x1 + x2;  // Addition
+x0 < x1 - x2;  // Subtraktion, wobei x0 <- 0 bei x2 > x1
 
 // While Schleifen. Es gibt genau eine Art von while-Schleife.
 
@@ -24,11 +24,11 @@ while x0 != 0 { // Eine beliebige Variable gefolt von der Bedingung != 0.
 // So kann beispielsweise x0 = x1 * x2 berechnet werden
 
 procedure mult {
-    x0 <- 0;
+    x0 < 0;
 
     while x1 != 0 {
-        x0 <- x0 + x2;
-        x1 <- x1 - 1;
+        x0 < x0 + x2;
+        x1 < x1 - 1;
     }
 }
 
@@ -39,8 +39,8 @@ procedure mult {
 // Prozeduren müssen auf äußerster Ebene des Programms definiert werden.
 // Sie können dann an späteren Stellend es Programms aufgerufen werden.
 
-x1 <- 10;
-x2 <- 5;
+x1 < 10;
+x2 < 5;
 mult;        // Nach diesem Statement hat x0 den Wert 50
 
 // Es können auch weitere Dateien eingebunden werden.

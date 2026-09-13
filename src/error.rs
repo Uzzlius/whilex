@@ -3,6 +3,7 @@ use std::fmt;
 // The implementation of errors is a bit scrappy. It would be cleaner to have
 // different errors for different pipeline stages. For example, the lexer could now
 // in theory return a `FileNotFound` Error, which is obviously stupid
+#[derive(Clone)]
 pub enum Error {
     // I/O errors
     FileNotFound(String),
@@ -12,6 +13,9 @@ pub enum Error {
 
     // Lexing errors
     UnknownSymbol(usize),
+
+    // Parsing errors
+    ExpectedExpression(usize),
 }
 
 // Implementing the display trait for errors, so that they can be ... displayed.
@@ -24,6 +28,7 @@ impl fmt::Display for Error {
             Self::MissingFilepath => write!(f, "Error: No filepath was provided."),
             Self::ParsingArguments => write!(f, "Error: Could not parse the provided initial variables."),
             Self::UnknownSymbol(line) => write!(f, "Error: Unknown symbol in line {}.", line),
+            Self::ExpectedExpression(line) => write!(f, "Error: Expected an expression in line {}.", line),
         }
     }
 }

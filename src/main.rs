@@ -8,7 +8,7 @@ fn main() {
 
     println!("{:?}", config);
 
-    let s = match run(config) {
+    let _s = match run(config) {
         Ok(s) => s,
         Err(err) => {
             eprintln!("{}", err);

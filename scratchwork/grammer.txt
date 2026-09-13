@@ -1,0 +1,6 @@
+expression      -> literal
+                 | binary
+
+binary          -> literal operator literal
+literal         -> NUMBER | IDENTIFIER
+operator        -> "+" | "-"

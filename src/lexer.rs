@@ -1,4 +1,5 @@
 use crate::error::Error;
+use std::iter::Peekable;
 use std::str::CharIndices;
 
 // The theoretical while-language allows for infinitely large integers, which is
@@ -7,8 +8,8 @@ use num_bigint::BigUint;
 
 /// Enumerates all possible Tokens in the language. There are only so many in a simple
 /// language like this. Only IDENTIFIER and NUMBER hold values.
-#[derive(Debug)]
-enum TokenType<'a> {
+#[derive(Debug, PartialEq)]
+pub enum TokenType<'a> {
     // Single-character tokens
     PLUS,
     MINUS,
@@ -33,17 +34,18 @@ enum TokenType<'a> {
 /// and the line number the token occurred on.
 #[derive(Debug)]
 pub struct Token<'a> {
-    typ: TokenType<'a>,
-    lexeme: &'a str,
-    line: usize,
+    pub typ: TokenType<'a>,
+    pub lexeme: &'a str,
+    pub line: usize,
 }
 
 /// The Lexer-struct holds an iterator over the characters in the source file and
 /// the line number that is currently being evaluated, as well as a vector containing
 /// all the errors that were found while lexing.
+#[derive(Clone)]
 pub struct Lexer<'a> {
     source: &'a str,
-    chars: CharIndices<'a>,
+    chars: Peekable<CharIndices<'a>>,
     line: usize,
     pub errors: Vec<Error>,
 }
@@ -56,10 +58,16 @@ impl<'a> Lexer<'a> {
     pub fn new(s: &'a str) -> Self {
         Self {
             source: s,
-            chars: s.char_indices(),
+            chars: s.char_indices().peekable(),
             line: 1,
             errors: Vec::new(),
         }
+    }
+
+    /// Allows for reading the next item from the iterator without consuming it, thus not
+    /// needing a mutable reference and not destructing the current state of the iterator.
+    pub fn peek(&self) -> Option<Token<'a>> {
+        self.clone().next()
     }
 
     // A helper function that allows for easy token creation. It takes in the reference to the source code,
@@ -72,19 +80,12 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    // A helper function that allows non-consuming lookahead. This is needed for seeing whether the
-    // next character belongs to the current token or not
-    fn peek(&self) -> Option<char> {
-        // Uses clone but is still pretty cheap as iterators are pretty small
-        self.chars.clone().next().map(|(_, c)| c)
-    }
-
     // A helper function that checks whether the next character matches some given expected character.
     // If so, it consumes the character and returns the characters size. If not, it returns None.
     fn match_next(&mut self, expect: char) -> Option<usize> {
-        let peek = self.peek();
+        let peek = self.chars.peek();
         let c = match peek {
-            Some(c) => c,
+            Some(c) => c.1,
             None => return None,
         };
         match c == expect {
@@ -106,8 +107,8 @@ impl<'a> Lexer<'a> {
     {
         let mut byte_count: usize = 0;
         loop {
-            let next = match self.peek() {
-                Some(next) => next,
+            let next = match self.chars.peek() {
+                Some(next) => next.1,
                 None => return byte_count,
             };
 
