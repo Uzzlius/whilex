@@ -1,10 +1,14 @@
+use crate::environment::Environment;
 use crate::error::Error;
-use crate::lexer::{Lexer, Token};
+use crate::interpreter::Interpreter;
+use crate::lexer::Lexer;
 use std::fs;
 
 use num_bigint::BigUint;
+mod environment;
 mod error;
 mod grammar;
+mod interpreter;
 mod lexer;
 mod parser;
 
@@ -47,21 +51,22 @@ pub fn run(config: Config) -> Result<(), Error> {
     };
 
     let mut lexer: Lexer = Lexer::new(&file_contents);
-
-    for token in &mut lexer {
-        println!("{:?}", token);
-    }
+    let environment = Environment::new(config.init);
+    let mut interpreter = Interpreter { env: environment };
 
     for error in &mut lexer.errors {
         eprintln!("{}", error);
     }
 
-    let mut parser = parser::Parser::new(Lexer::new(&file_contents));
+    let mut parser = parser::Parser::new(lexer);
 
-    let ast = parser.expression();
-
+    let ast = parser.program();
     match ast {
-        Ok(o) => println!("{:?}", o),
+        Ok(o) => {
+            println!("{:?}", o);
+            let res = interpreter.program(o);
+            println!("{}", res.unwrap());
+        }
         Err(err) => eprintln!("{}", err),
     }
 

@@ -28,6 +28,15 @@ pub enum TokenType<'a> {
     // Keywords
     PROCEDURE,
     WHILE,
+
+    // Other
+    EOF,
+}
+
+#[derive(Debug)]
+pub struct TokenPos<'a> {
+    pub lexeme: &'a str,
+    pub line: usize,
 }
 
 /// The datatype of a single token, that specifies its type, lexeme,
@@ -35,8 +44,7 @@ pub enum TokenType<'a> {
 #[derive(Debug)]
 pub struct Token<'a> {
     pub typ: TokenType<'a>,
-    pub lexeme: &'a str,
-    pub line: usize,
+    pub pos: TokenPos<'a>,
 }
 
 /// The Lexer-struct holds an iterator over the characters in the source file and
@@ -48,6 +56,7 @@ pub struct Lexer<'a> {
     chars: Peekable<CharIndices<'a>>,
     line: usize,
     pub errors: Vec<Error>,
+    eof_used: bool,
 }
 
 // Implementations on the Lexer struct
@@ -61,6 +70,7 @@ impl<'a> Lexer<'a> {
             chars: s.char_indices().peekable(),
             line: 1,
             errors: Vec::new(),
+            eof_used: false,
         }
     }
 
@@ -75,8 +85,10 @@ impl<'a> Lexer<'a> {
     fn make_token(&self, typ: TokenType<'a>, start: usize, diff: usize) -> Option<Token<'a>> {
         Some(Token {
             typ: typ,
-            lexeme: &self.source[start..start + diff],
-            line: self.line,
+            pos: TokenPos {
+                lexeme: &self.source[start..start + diff],
+                line: self.line,
+            },
         })
     }
 
@@ -133,8 +145,25 @@ impl<'a> Iterator for Lexer<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Starting with a new Token, we get the next character and its byte index.
-            // If there is no new character, we return None
-            let (start, c) = self.chars.next()?;
+            // If there is no new character, we return EOF and denote that in the eof_used bool.
+            // The next time next() is called, we return None.
+            let (start, c) = match self.chars.next() {
+                Some((start, c)) => (start, c),
+                None => {
+                    if self.eof_used {
+                        return None;
+                    } else {
+                        self.eof_used = true;
+                        return Some(Token {
+                            typ: TokenType::EOF,
+                            pos: (TokenPos {
+                                lexeme: "",
+                                line: self.line,
+                            }),
+                        });
+                    }
+                }
+            };
 
             // Matching the new character
             match c {

@@ -16,6 +16,11 @@ pub enum Error {
 
     // Parsing errors
     ExpectedExpression(usize),
+    InvalidAssignmentTarget(usize),
+    ExpectedToken(String, usize),
+
+    // Runtime error
+    MismatchedTypes(usize),
 }
 
 // Implementing the display trait for errors, so that they can be ... displayed.
@@ -29,6 +34,15 @@ impl fmt::Display for Error {
             Self::ParsingArguments => write!(f, "Error: Could not parse the provided initial variables."),
             Self::UnknownSymbol(line) => write!(f, "Error: Unknown symbol in line {}.", line),
             Self::ExpectedExpression(line) => write!(f, "Error: Expected an expression in line {}.", line),
+            Self::MismatchedTypes(line) => write!(f, "Error: Found unexpected type in line {}.", line),
+            Self::InvalidAssignmentTarget(line) => write!(f, "Error: Invalid assignment target in line {}.", line),
+            Self::ExpectedToken(token, line) => write!(f, "Error: Expected {} in line {}.", token, line),
         }
+    }
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }

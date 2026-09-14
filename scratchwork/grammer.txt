@@ -1,3 +1,10 @@
+program         -> statement* EOF
+
+statement       -> varDecl
+
+varDecl         -> IDENTIFIER "<" expression ";"
+
+
 expression      -> literal
                  | binary
 
