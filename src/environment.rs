@@ -13,7 +13,7 @@ impl Environment {
         };
 
         for (index, num) in init.into_iter().enumerate() {
-            environment.assign(&format!("v{}", index), num);
+            environment.assign(&format!("x{}", index), num);
         }
 
         environment

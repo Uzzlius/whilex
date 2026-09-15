@@ -8,7 +8,7 @@ use num_bigint::BigUint;
 
 /// Enumerates all possible Tokens in the language. There are only so many in a simple
 /// language like this. Only IDENTIFIER and NUMBER hold values.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType<'a> {
     // Single-character tokens
     PLUS,
@@ -33,7 +33,13 @@ pub enum TokenType<'a> {
     EOF,
 }
 
-#[derive(Debug)]
+impl<'a> TokenType<'a> {
+    pub fn is_same_kind(&self, other: &TokenType) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct TokenPos<'a> {
     pub lexeme: &'a str,
     pub line: usize,
@@ -41,7 +47,7 @@ pub struct TokenPos<'a> {
 
 /// The datatype of a single token, that specifies its type, lexeme,
 /// and the line number the token occurred on.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     pub typ: TokenType<'a>,
     pub pos: TokenPos<'a>,
@@ -55,7 +61,6 @@ pub struct Lexer<'a> {
     source: &'a str,
     chars: Peekable<CharIndices<'a>>,
     line: usize,
-    pub errors: Vec<Error>,
     eof_used: bool,
 }
 
@@ -69,27 +74,25 @@ impl<'a> Lexer<'a> {
             source: s,
             chars: s.char_indices().peekable(),
             line: 1,
-            errors: Vec::new(),
             eof_used: false,
         }
     }
 
-    /// Allows for reading the next item from the iterator without consuming it, thus not
-    /// needing a mutable reference and not destructing the current state of the iterator.
-    pub fn peek(&self) -> Option<Token<'a>> {
-        self.clone().next()
-    }
-
     // A helper function that allows for easy token creation. It takes in the reference to the source code,
     // as well as a start index and how many bytes have been read and returns an Option<Token> out of it
-    fn make_token(&self, typ: TokenType<'a>, start: usize, diff: usize) -> Option<Token<'a>> {
-        Some(Token {
+    fn make_token(
+        &self,
+        typ: TokenType<'a>,
+        start: usize,
+        diff: usize,
+    ) -> Option<Result<Token<'a>, Error>> {
+        Some(Ok(Token {
             typ: typ,
             pos: TokenPos {
                 lexeme: &self.source[start..start + diff],
                 line: self.line,
             },
-        })
+        }))
     }
 
     // A helper function that checks whether the next character matches some given expected character.
@@ -141,7 +144,7 @@ impl<'a> Lexer<'a> {
 // Implementing the Iterator trait on the lexer.
 impl<'a> Iterator for Lexer<'a> {
     // The iterator is supposed to return a new Token
-    type Item = Token<'a>;
+    type Item = Result<Token<'a>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Starting with a new Token, we get the next character and its byte index.
@@ -154,13 +157,13 @@ impl<'a> Iterator for Lexer<'a> {
                         return None;
                     } else {
                         self.eof_used = true;
-                        return Some(Token {
+                        return Some(Ok(Token {
                             typ: TokenType::EOF,
                             pos: (TokenPos {
                                 lexeme: "",
                                 line: self.line,
                             }),
-                        });
+                        }));
                     }
                 }
             };
@@ -183,8 +186,7 @@ impl<'a> Iterator for Lexer<'a> {
                     byte_len += match self.match_next('=') {
                         Some(byte_len) => byte_len,
                         None => {
-                            self.errors.push(Error::UnknownSymbol(self.line));
-                            continue;
+                            return Some(Err(Error::UnknownSymbol(self.line)));
                         }
                     };
                     return self.make_token(TokenType::NEQUAL, start, byte_len);
@@ -199,8 +201,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                         // If not, we report an error as `/` is not a valid character
                         None => {
-                            self.errors.push(Error::UnknownSymbol(self.line));
-                            continue;
+                            return Some(Err(Error::UnknownSymbol(self.line)));
                         }
                     }
                     // If there is another /, we consume the entire line without adding a token
@@ -248,7 +249,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                 // All other tokens are invalid and will be reported as an error
                 _ => {
-                    self.errors.push(Error::UnknownSymbol(self.line));
+                    return Some(Err(Error::UnknownSymbol(self.line)));
                 }
             }
         }

@@ -1,51 +1,61 @@
 use crate::Error;
 use crate::Lexer;
-use crate::grammar::Literal::Identifier;
 use crate::grammar::*;
-use crate::lexer::TokenType;
+use crate::lexer::{Token, TokenType};
+use std::iter::Peekable;
 
 pub struct Parser<'a> {
-    tokens: Lexer<'a>,
+    tokens: Peekable<Lexer<'a>>,
+    pub errors: Vec<Error>,
+    last_line: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Self {
-        Self { tokens: lexer }
+        Self {
+            errors: Vec::new(),
+            tokens: lexer.peekable(),
+            last_line: 1,
+        }
     }
 
     pub fn program(&mut self) -> Result<Program<'a>, Error> {
         let mut statements: Vec<Stmt> = Vec::new();
 
-        while !self._check_next(|n| matches!(n, TokenType::EOF)) {
-            statements.push(self.statement()?);
+        loop {
+            match self.peek() {
+                Ok(t) => match t.typ {
+                    TokenType::EOF => break,
+                    _ => (),
+                },
+                Err(err) => {
+                    self.errors.push(err);
+                    self.synchronize();
+                    continue;
+                }
+            }
+
+            match self.statement() {
+                Ok(statement) => statements.push(statement),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.synchronize();
+                }
+            }
+        }
+
+        if self.errors.len() != 0 {
+            return Err(Error::ParsingError);
         }
 
         Ok(Program::Statements(statements))
     }
 
     fn statement(&mut self) -> Result<Stmt<'a>, Error> {
-        let line;
-
-        let left = self.literal()?;
-        let name = match left {
-            Literal::Number { content, pos } => {
-                return Err(Error::InvalidAssignmentTarget(pos.line));
-            }
-            Literal::Identifier { content, pos } => {
-                line = pos.line;
-                content
-            }
-        };
-
-        if !self.match_next(|n| matches!(n, TokenType::LARROW)) {
-            return Err(Error::ExpectedToken("<".to_string(), line));
-        }
-
+        let name = self.var()?;
+        self.consume(TokenType::LARROW, "<")?;
         let right = self.expression()?;
-
-        if !self.match_next(|n| matches!(n, TokenType::SEMICOLON)) {
-            return Err(Error::ExpectedToken(";".to_string(), line));
-        }
+        self.consume(TokenType::SEMICOLON, ";")?;
 
         Ok(Stmt::VarAssignment {
             name: name,
@@ -70,55 +80,93 @@ impl<'a> Parser<'a> {
     }
 
     fn literal(&mut self) -> Result<Literal<'a>, Error> {
-        let token = self.tokens.peek().ok_or(Error::ExpectedExpression(0))?;
+        let token = self.peek()?.clone();
 
         match token.typ {
             TokenType::IDENTIFIER(n) => Ok(Literal::Identifier {
                 content: n,
-                pos: self.tokens.next().unwrap().pos,
+                pos: self.next()?.pos,
             }),
             TokenType::NUMBER(n) => Ok(Literal::Number {
                 content: n,
-                pos: self.tokens.next().unwrap().pos,
+                pos: self.next()?.pos,
             }),
-            _ => Err(Error::ExpectedExpression(token.pos.line)),
+            _ => Err(Error::ExpectedExpression(self.last_line)),
         }
     }
 
     fn infix_operator(&mut self) -> Result<InfixOperator<'a>, Error> {
-        let token = self.tokens.peek().ok_or(Error::ExpectedExpression(0))?;
+        let token = self.peek()?;
 
         match token.typ {
-            TokenType::PLUS => Ok(InfixOperator::Plus(self.tokens.next().unwrap().pos)),
-            TokenType::MINUS => Ok(InfixOperator::Minus(self.tokens.next().unwrap().pos)),
-            _ => Err(Error::ExpectedExpression(token.pos.line)),
+            TokenType::PLUS => Ok(InfixOperator::Plus(self.next()?.pos)),
+            TokenType::MINUS => Ok(InfixOperator::Minus(self.next()?.pos)),
+            _ => Err(Error::ExpectedExpression(self.last_line)),
         }
     }
 
-    fn match_next<F>(&mut self, f: F) -> bool
-    where
-        F: FnOnce(TokenType) -> bool,
-    {
-        let peek = match self.tokens.peek() {
-            Some(n) => n.typ,
-            None => return false,
-        };
-        if f(peek) {
-            self.tokens.next();
-            return true;
-        } else {
-            return false;
+    fn var(&mut self) -> Result<&'a str, Error> {
+        let token = self.peek()?;
+
+        match token.typ {
+            TokenType::IDENTIFIER(n) => {
+                self.next()?;
+                Ok(n)
+            }
+            _ => Err(Error::InvalidAssignmentTarget(self.last_line)),
         }
     }
 
-    fn _check_next<F>(&self, f: F) -> bool
-    where
-        F: FnOnce(TokenType) -> bool,
-    {
-        let peek = match self.tokens.peek() {
-            Some(n) => n.typ,
-            None => return false,
-        };
-        f(peek)
+    fn consume(&mut self, expected: TokenType, expect_msg: &str) -> Result<(), Error> {
+        let next = self.peek()?;
+        if expected.is_same_kind(&next.typ) {
+            self.next()?;
+            return Ok(());
+        }
+        Err(Error::ExpectedToken(expect_msg.to_string(), self.last_line))
+    }
+
+    fn synchronize(&mut self) {
+        loop {
+            let next = match self.peek() {
+                Ok(next) => next,
+                Err(_) => {
+                    let _ = self.next();
+                    continue;
+                }
+            };
+            if matches!(
+                next.typ,
+                TokenType::EOF | TokenType::WHILE | TokenType::PROCEDURE
+            ) {
+                return;
+            }
+            let next = self.next().expect("Error handled on peek previously");
+            if matches!(next.typ, TokenType::SEMICOLON) {
+                return;
+            }
+        }
+    }
+
+    // Returns a reference to the next token without consuming it. Only if the next token call
+    // returns an Error (lexing error), that error will be consumed and returned.
+    fn peek(&mut self) -> Result<&Token<'a>, Error> {
+        match self.tokens.peek() {
+            Some(Ok(t)) => Ok(t),
+            Some(Err(e)) => Err(e.clone()),
+            None => Err(Error::ParsingError),
+        }
+    }
+
+    // Unwraps the next token from the Option<> and returns a Result<Token, Error>
+    fn next(&mut self) -> Result<Token<'a>, Error> {
+        match self.tokens.next() {
+            Some(Ok(t)) => {
+                self.last_line = t.pos.line;
+                Ok(t)
+            }
+            None => Err(Error::ParsingError),
+            Some(Err(error)) => Err(error),
+        }
     }
 }

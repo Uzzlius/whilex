@@ -14,7 +14,7 @@ impl Interpreter {
                 }
             }
         }
-        Ok(self.env.retrieve("v0").clone())
+        Ok(self.env.retrieve("x0").clone())
     }
 
     fn statement(&mut self, stmt: Stmt) -> Result<(), Error> {

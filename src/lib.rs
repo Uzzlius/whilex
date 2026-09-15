@@ -2,6 +2,7 @@ use crate::environment::Environment;
 use crate::error::Error;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 use std::fs;
 
 use num_bigint::BigUint;
@@ -50,25 +51,18 @@ pub fn run(config: Config) -> Result<(), Error> {
         Err(_) => return Err(Error::FileNotFound(config.file_path)),
     };
 
-    let mut lexer: Lexer = Lexer::new(&file_contents);
+    let lexer: Lexer = Lexer::new(&file_contents);
     let environment = Environment::new(config.init);
     let mut interpreter = Interpreter { env: environment };
 
-    for error in &mut lexer.errors {
+    let mut parser = Parser::new(lexer);
+    let program = parser.program();
+
+    for error in parser.errors {
         eprintln!("{}", error);
     }
 
-    let mut parser = parser::Parser::new(lexer);
-
-    let ast = parser.program();
-    match ast {
-        Ok(o) => {
-            println!("{:?}", o);
-            let res = interpreter.program(o);
-            println!("{}", res.unwrap());
-        }
-        Err(err) => eprintln!("{}", err),
-    }
+    println!("{}", interpreter.program(program?)?);
 
     Ok(())
 }

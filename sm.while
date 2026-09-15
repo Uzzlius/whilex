@@ -1,5 +1,0 @@
-// das ist ein Kommentar
-v0 < 10 + 100;
-
-variable < 1908;
-v0 < 1908 - v0;

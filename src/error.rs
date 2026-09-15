@@ -15,6 +15,7 @@ pub enum Error {
     UnknownSymbol(usize),
 
     // Parsing errors
+    ParsingError,
     ExpectedExpression(usize),
     InvalidAssignmentTarget(usize),
     ExpectedToken(String, usize),
@@ -37,6 +38,7 @@ impl fmt::Display for Error {
             Self::MismatchedTypes(line) => write!(f, "Error: Found unexpected type in line {}.", line),
             Self::InvalidAssignmentTarget(line) => write!(f, "Error: Invalid assignment target in line {}.", line),
             Self::ExpectedToken(token, line) => write!(f, "Error: Expected {} in line {}.", token, line),
+            Self::ParsingError => write!(f, "Error: An error occured while parsing."),
         }
     }
 }

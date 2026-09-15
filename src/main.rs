@@ -6,8 +6,6 @@ fn main() {
         process::exit(1);
     });
 
-    println!("{:?}", config);
-
     let _s = match run(config) {
         Ok(s) => s,
         Err(err) => {
