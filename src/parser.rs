@@ -1,3 +1,5 @@
+use num_bigint::BigUint;
+
 use crate::Error;
 use crate::Lexer;
 use crate::grammar::*;
@@ -20,47 +22,111 @@ impl<'a> Parser<'a> {
     }
 
     pub fn program(&mut self) -> Result<Program<'a>, Error> {
-        let mut statements: Vec<Stmt> = Vec::new();
+        let mut declarations: Vec<Decl> = Vec::new();
 
-        loop {
-            match self.peek() {
-                Ok(t) => match t.typ {
-                    TokenType::EOF => break,
-                    _ => (),
-                },
-                Err(err) => {
-                    self.errors.push(err);
-                    self.synchronize();
-                    continue;
-                }
-            }
-
-            match self.statement() {
-                Ok(statement) => statements.push(statement),
-                Err(err) => {
-                    self.errors.push(err);
-                    self.synchronize();
-                }
+        while match self.peek() {
+            Ok(token) => match token.typ {
+                TokenType::EOF => false,
+                _ => true,
+            },
+            _ => true,
+        } {
+            match self.declaration() {
+                Ok(decl) => declarations.push(decl),
+                Err(_) => continue,
             }
         }
-
-        if self.errors.len() != 0 {
+        if !self.errors.is_empty() {
             return Err(Error::ParsingError);
         }
 
-        Ok(Program::Statements(statements))
+        return Ok(Program::Declarations(declarations));
+    }
+
+    fn declaration(&mut self) -> Result<Decl<'a>, Error> {
+        //Procedure declaration
+        if let Ok(()) = self.consume(TokenType::PROCEDURE, "procedure") {
+            match self.procedure() {
+                Ok(proc) => return Ok(proc),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.synchronize();
+                    return Err(Error::ParsingError);
+                }
+            }
+        }
+
+        // Statement
+        match self.statement() {
+            Ok(stmt) => return Ok(Decl::Statement(stmt)),
+            Err(err) => {
+                self.errors.push(err);
+                self.synchronize();
+                return Err(Error::ParsingError);
+            }
+        }
+    }
+
+    fn procedure(&mut self) -> Result<Decl<'a>, Error> {
+        let name = self.var()?;
+        let stmt = self.statement()?;
+
+        return Ok(Decl::Procedure {
+            name: name,
+            statement: Box::new(stmt),
+        });
     }
 
     fn statement(&mut self) -> Result<Stmt<'a>, Error> {
+        // while statement
+        if let Ok(()) = self.consume(TokenType::WHILE, "while") {
+            let name = self.var()?;
+            self.consume(TokenType::NEQUAL, "!=")?;
+            match self.literal()? {
+                Literal::Number { content, pos } if content == BigUint::ZERO => (),
+                _ => return Err(Error::ExpectedToken("0".to_string(), self.last_line)),
+            }
+            let stmt = self.statement()?;
+
+            return Ok(Stmt::While {
+                name: name,
+                statement: Box::new(stmt),
+            });
+        }
+
+        // {} block
+        if let Ok(()) = self.consume(TokenType::LBRACKET, "{") {
+            let mut statements = Vec::new();
+
+            while match self.peek() {
+                Ok(t) => !matches!(t.typ, TokenType::RBRACKET | TokenType::EOF),
+                Err(_) => true,
+            } {
+                statements.push(self.statement()?);
+            }
+
+            self.consume(TokenType::RBRACKET, "}")?;
+            return Ok(Stmt::Block(statements));
+        }
+
+        // var declaration or procedure calling
+        self.var_dec_or_proc_call()
+    }
+
+    fn var_dec_or_proc_call(&mut self) -> Result<Stmt<'a>, Error> {
         let name = self.var()?;
-        self.consume(TokenType::LARROW, "<")?;
-        let right = self.expression()?;
+        if let Ok(()) = self.consume(TokenType::LARROW, "<") {
+            let right = self.expression()?;
+            self.consume(TokenType::SEMICOLON, ";")?;
+
+            return Ok(Stmt::VarAssignment {
+                name: name,
+                expr: right,
+            });
+        }
         self.consume(TokenType::SEMICOLON, ";")?;
 
-        Ok(Stmt::VarAssignment {
-            name: name,
-            expr: right,
-        })
+        return Ok(Stmt::Procedure(name));
     }
 
     fn expression(&mut self) -> Result<Expr<'a>, Error> {
@@ -113,7 +179,7 @@ impl<'a> Parser<'a> {
                 self.next()?;
                 Ok(n)
             }
-            _ => Err(Error::InvalidAssignmentTarget(self.last_line)),
+            _ => Err(Error::NotAVariable(self.last_line)),
         }
     }
 
@@ -137,12 +203,12 @@ impl<'a> Parser<'a> {
             };
             if matches!(
                 next.typ,
-                TokenType::EOF | TokenType::WHILE | TokenType::PROCEDURE
+                TokenType::EOF | TokenType::WHILE | TokenType::PROCEDURE | TokenType::LBRACKET
             ) {
                 return;
             }
             let next = self.next().expect("Error handled on peek previously");
-            if matches!(next.typ, TokenType::SEMICOLON) {
+            if matches!(next.typ, TokenType::SEMICOLON | TokenType::RBRACKET) {
                 return;
             }
         }

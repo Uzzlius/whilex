@@ -4,12 +4,30 @@ use crate::lexer::TokenPos;
 
 #[derive(Debug)]
 pub enum Program<'a> {
-    Statements(Vec<Stmt<'a>>),
+    Declarations(Vec<Decl<'a>>),
+}
+
+#[derive(Debug)]
+pub enum Decl<'a> {
+    Statement(Stmt<'a>),
+    Procedure {
+        name: &'a str,
+        statement: Box<Stmt<'a>>,
+    },
 }
 
 #[derive(Debug)]
 pub enum Stmt<'a> {
-    VarAssignment { name: &'a str, expr: Expr<'a> },
+    VarAssignment {
+        name: &'a str,
+        expr: Expr<'a>,
+    },
+    Block(Vec<Stmt<'a>>),
+    While {
+        name: &'a str,
+        statement: Box<Stmt<'a>>,
+    },
+    Procedure(&'a str),
 }
 
 #[derive(Debug)]

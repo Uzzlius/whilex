@@ -26,7 +26,7 @@ impl Config {
         args.next();
         let file_path = match args.next() {
             Some(arg) => {
-                if arg.ends_with(".while") {
+                if arg.ends_with(".whl") {
                     arg
                 } else {
                     return Err(Error::IncorrectFiletype);
@@ -62,7 +62,7 @@ pub fn run(config: Config) -> Result<(), Error> {
         eprintln!("{}", error);
     }
 
-    println!("{}", interpreter.program(program?)?);
+    println!("{}", interpreter.program(&program?)?);
 
     Ok(())
 }
