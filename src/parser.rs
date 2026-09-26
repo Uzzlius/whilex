@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
             let name = self.var()?;
             self.consume(TokenType::NEQUAL, "!=")?;
             match self.literal()? {
-                Literal::Number { content, pos } if content == BigUint::ZERO => (),
+                Literal::Number(content) if content == BigUint::ZERO => (),
                 _ => return Err(Error::ExpectedToken("0".to_string(), self.last_line)),
             }
             let stmt = self.statement()?;
@@ -126,7 +126,10 @@ impl<'a> Parser<'a> {
         }
         self.consume(TokenType::SEMICOLON, ";")?;
 
-        return Ok(Stmt::Procedure(name));
+        return Ok(Stmt::Procedure {
+            name: name,
+            line: self.last_line,
+        });
     }
 
     fn expression(&mut self) -> Result<Expr<'a>, Error> {
@@ -149,24 +152,30 @@ impl<'a> Parser<'a> {
         let token = self.peek()?.clone();
 
         match token.typ {
-            TokenType::IDENTIFIER(n) => Ok(Literal::Identifier {
-                content: n,
-                pos: self.next()?.pos,
-            }),
-            TokenType::NUMBER(n) => Ok(Literal::Number {
-                content: n,
-                pos: self.next()?.pos,
-            }),
+            TokenType::IDENTIFIER(n) => {
+                let _ = self.next();
+                return Ok(Literal::Identifier(n));
+            }
+            TokenType::NUMBER(n) => {
+                let _ = self.next();
+                return Ok(Literal::Number(n));
+            }
             _ => Err(Error::ExpectedExpression(self.last_line)),
         }
     }
 
-    fn infix_operator(&mut self) -> Result<InfixOperator<'a>, Error> {
+    fn infix_operator(&mut self) -> Result<InfixOperator, Error> {
         let token = self.peek()?;
 
         match token.typ {
-            TokenType::PLUS => Ok(InfixOperator::Plus(self.next()?.pos)),
-            TokenType::MINUS => Ok(InfixOperator::Minus(self.next()?.pos)),
+            TokenType::PLUS => {
+                let _ = self.next();
+                return Ok(InfixOperator::Plus);
+            }
+            TokenType::MINUS => {
+                let _ = self.next();
+                return Ok(InfixOperator::Minus);
+            }
             _ => Err(Error::ExpectedExpression(self.last_line)),
         }
     }

@@ -22,7 +22,7 @@ pub enum Error {
 
     // Runtime error
     MismatchedTypes(usize),
-    UndefinedProcedure(usize),
+    UndefinedProcedure(String, usize),
 }
 
 // Implementing the display trait for errors, so that they can be ... displayed.
@@ -40,7 +40,7 @@ impl fmt::Display for Error {
             Self::NotAVariable(line) => write!(f, "Error: Expected a variable in line {}.", line),
             Self::ExpectedToken(token, line) => write!(f, "Error: Expected {} in line {}.", token, line),
             Self::ParsingError => write!(f, "Error: An error occured while parsing."),
-            Self::UndefinedProcedure(line) => write!(f, "Error: Referenced Procedure has not been defined in line {}.", line)
+            Self::UndefinedProcedure(name, line) => write!(f, "Error: Referenced Procedure`{}` has not been defined in line {}.", name, line)
         }
     }
 }

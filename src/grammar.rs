@@ -1,7 +1,5 @@
 use num_bigint::BigUint;
 
-use crate::lexer::TokenPos;
-
 #[derive(Debug)]
 pub enum Program<'a> {
     Declarations(Vec<Decl<'a>>),
@@ -27,7 +25,10 @@ pub enum Stmt<'a> {
         name: &'a str,
         statement: Box<Stmt<'a>>,
     },
-    Procedure(&'a str),
+    Procedure {
+        name: &'a str,
+        line: usize,
+    },
 }
 
 #[derive(Debug)]
@@ -35,19 +36,19 @@ pub enum Expr<'a> {
     Literal(Literal<'a>),
     BinaryOp {
         left: Literal<'a>,
-        operator: InfixOperator<'a>,
+        operator: InfixOperator,
         right: Literal<'a>,
     },
 }
 
 #[derive(Debug)]
 pub enum Literal<'a> {
-    Number { content: BigUint, pos: TokenPos<'a> },
-    Identifier { content: &'a str, pos: TokenPos<'a> },
+    Number(BigUint),
+    Identifier(&'a str),
 }
 
 #[derive(Debug)]
-pub enum InfixOperator<'a> {
-    Plus(TokenPos<'a>),
-    Minus(TokenPos<'a>),
+pub enum InfixOperator {
+    Plus,
+    Minus,
 }

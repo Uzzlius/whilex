@@ -59,7 +59,7 @@ When you run your program through the terminal, you specify the file-path of a `
 The output of the following program will thus be `30` in this case.
 
 ```javascript
-x0 < x3; // Assigning x3 to x0
+x0 < x2; // Assigning x2 to x0
 ```
 ```sh
 whilex path/file.whl 10 20 30

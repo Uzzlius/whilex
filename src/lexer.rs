@@ -41,7 +41,7 @@ impl<'a> TokenType<'a> {
 
 #[derive(Debug, Clone)]
 pub struct TokenPos<'a> {
-    pub lexeme: &'a str,
+    pub _lexeme: &'a str,
     pub line: usize,
 }
 
@@ -89,7 +89,7 @@ impl<'a> Lexer<'a> {
         Some(Ok(Token {
             typ: typ,
             pos: TokenPos {
-                lexeme: &self.source[start..start + diff],
+                _lexeme: &self.source[start..start + diff],
                 line: self.line,
             },
         }))
@@ -160,7 +160,7 @@ impl<'a> Iterator for Lexer<'a> {
                         return Some(Ok(Token {
                             typ: TokenType::EOF,
                             pos: (TokenPos {
-                                lexeme: "",
+                                _lexeme: "",
                                 line: self.line,
                             }),
                         }));

@@ -54,10 +54,10 @@ impl<'a> Interpreter<'a> {
                 }
                 return Ok(());
             }
-            Stmt::Procedure(name) => {
+            Stmt::Procedure { name, line } => {
                 let stmt = match self.env.retrieve_proc(name) {
                     Some(stmt) => stmt,
-                    None => return Err(Error::UndefinedProcedure(0)),
+                    None => return Err(Error::UndefinedProcedure(name.to_string(), *line)),
                 };
                 self.statement(stmt)?;
             }
@@ -86,8 +86,8 @@ impl<'a> Interpreter<'a> {
         let right = self.literal(right)?;
 
         match operator {
-            InfixOperator::Plus(_) => Ok(left + right),
-            InfixOperator::Minus(_) => {
+            InfixOperator::Plus => Ok(left + right),
+            InfixOperator::Minus => {
                 if right > left {
                     return Ok(BigUint::ZERO);
                 }
@@ -98,8 +98,8 @@ impl<'a> Interpreter<'a> {
 
     fn literal(&self, literal: &Literal) -> Result<BigUint, Error> {
         match literal {
-            Literal::Number { content, pos } => Ok(content.clone()),
-            Literal::Identifier { content, pos } => Ok(self.env.retrieve_var(content).clone()),
+            Literal::Number(content) => Ok(content.clone()),
+            Literal::Identifier(content) => Ok(self.env.retrieve_var(content).clone()),
         }
     }
 }
