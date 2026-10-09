@@ -80,3 +80,31 @@ So how do you get your hands on this fancy language?
    ```sh
    whilex path/file.whl
    ```
+
+## Compiling whilex
+```
+./compilex --help
+Whilex compiler
+
+Usage: compilex [OPTIONS] <FILE_PATH>
+
+Arguments:
+  <FILE_PATH>  Source file *.whl
+
+Options:
+  -o, --output <OUTPUT>                Output executable path
+      --object-output <OBJECT_OUTPUT>  Output object file path
+      --target <TARGET>                Target triple
+      --sysroot <SYSROOT>              Sysroot
+      --cpu <CPU>                      Target CPU
+      --features <FEATURES>            Target features
+  -h, --help                           Print help
+  -V, --version                        Print version
+```
+
+Make sure that `runtime.o` is in the same directory as compilex. You can build the runtime by running `build.sh` in `compiler/runtime`.
+
+Library requirements:
+- LLVM 22.1.1
+- clang
+- lld
