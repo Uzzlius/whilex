@@ -7,11 +7,11 @@ use std::fs;
 
 use num_bigint::BigUint;
 mod environment;
-mod error;
-mod grammar;
+pub mod error;
+pub mod grammar;
 mod interpreter;
-mod lexer;
-mod parser;
+pub mod lexer;
+pub mod parser;
 
 // The configuration struct represents everything the user entered, being
 // the path to a `.while` file and an arbitrary amount of initial values.
