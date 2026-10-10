@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+cd "$(dirname "$0")"
 clang -Oz \
   -ffunction-sections -fdata-sections \
   -fno-unwind-tables -fno-asynchronous-unwind-tables \

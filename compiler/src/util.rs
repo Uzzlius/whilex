@@ -1,13 +1,19 @@
 use std::collections::HashSet;
 use whilex::grammar::*;
 
-pub fn get_args(program: &Program<'_>) -> Result<Vec<usize>, &'static str> {
-    get_variables(program)
-        .into_iter()
-        .filter_map(|name| name.strip_prefix('x'))
-        .filter(|suffix| !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()))
-        .map(|suffix| suffix.parse::<usize>().map_err(|_| "Too many arguments"))
-        .collect()
+
+pub fn parse_argument_index(varname: &str) -> Result<Option<u32>, String> {
+    let Some(suffix) = varname.strip_prefix("x") else {
+        return Ok(None);
+    };
+
+    if suffix.is_empty() {
+        return Ok(None);
+    }
+
+    suffix.parse::<u32>()
+        .map_err(|_| format!("Can not parse {suffix} as u32"))
+        .map(Some)
 }
 
 pub fn get_variables<'a>(

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::context::Context;
 use inkwell::builder::Builder;
 use inkwell::module::{Linkage, Module};
@@ -6,7 +7,7 @@ use inkwell::values::{BasicValue, BasicValueEnum, FunctionValue, GlobalValue};
 use num_traits::ToPrimitive;
 use whilex::grammar::*;
 
-use crate::util;
+use crate::util::{get_variables, parse_argument_index};
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -20,7 +21,7 @@ pub struct Compiler<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
-    fn compile_decls(&mut self, declarations: &Vec<Decl<'a>> ) -> Result<(), String> {
+    fn compile_decls(&mut self, declarations: &[Decl<'a>] ) -> Result<(), String> {
         for decl in declarations {
             self.compile_decl(decl)?;
         }
@@ -39,7 +40,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.builder.position_at_end(entry);
 
                 self.compile_stmt(statement)?;
-                self.builder.build_return(None).unwrap();
+                self.builder.build_return(None).map_err(|e| e.to_string())?;
 
                 if let Some(previous) = previous {
                     self.builder.position_at_end(previous);
@@ -160,14 +161,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let i128_type = self.context.i128_type();
         let i32_type = self.context.i32_type();
 
-        for name in util::get_variables(self.program) {
-            let global = self.module.add_global(i128_type, None, name);
-            global.set_initializer(&i128_type.const_zero());
-            self.variables.insert(String::from(name), global);
-        }
-        
-        let load_arg_fn_type = i128_type.fn_type(&[i32_type.into()], false);
-        let load_arg_fn = self.module.add_function("_load_arg", load_arg_fn_type, Some(Linkage::External));
 
         let fn_type = i128_type.fn_type(&[], false);
         let fn_val = self.module.add_function("_main", fn_type, Some(Linkage::External));
@@ -181,25 +174,40 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let entry = self.context.append_basic_block(fn_val, "entry");
         self.builder.position_at_end(entry);
 
-        for arg_idx in util::get_args(self.program)? {
-            let index = i32_type.const_int(arg_idx as u64, false);
+        
+        let load_arg_fn_type = i128_type.fn_type(&[i32_type.into()], false);
+        let load_arg_fn = self.module.add_function("_load_arg", load_arg_fn_type, Some(Linkage::External));
+        load_arg_fn.add_attribute(AttributeLoc::Function, self.context.create_enum_attribute(Attribute::get_named_enum_kind_id("memory"), 0x555));
+        load_arg_fn.add_attribute(AttributeLoc::Function, self.context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0));
+        load_arg_fn.add_attribute(AttributeLoc::Function, self.context.create_enum_attribute(Attribute::get_named_enum_kind_id("willreturn"), 0));
 
-            let call = self
-                .builder
-                .build_call(load_arg_fn, &[index.into()], "arg_value")
-                .expect("Could not build call");
 
-            let value = call
-                .try_as_basic_value().basic().ok_or("Call has no basic value return")?;
+        for name in get_variables(self.program) {
+            let global = self.module.add_global(i128_type, None, name);
+            global.set_linkage(Linkage::Internal);
+            global.set_initializer(&i128_type.const_zero());
+            self.variables.insert(String::from(name), global);
 
-            let global = self
-                .variables
-                .get(&format!("x{arg_idx}"))
-                .ok_or("Could not resolve arg global")?;
+            let arg_number = parse_argument_index(name)?;
+            let value = match arg_number {
+                None => i128_type.const_zero().as_basic_value_enum(), 
+                Some(idx) => {
+                    if idx.to_u32().is_none() {
+                        return Err(format!("The argument index for {name} is too large."))
+                    }
+                    let index = i32_type.const_int(idx as u64, false);
+                    let call = self
+                        .builder
+                        .build_call(load_arg_fn, &[index.into()], "arg_value")
+                        .map_err(|e| e.to_string())?;
+
+                    call.try_as_basic_value().basic().ok_or("Call has no basic value return")?
+                }
+            };
 
             self.builder
                 .build_store(global.as_pointer_value(), value)
-                .expect("Could not store argument");
+                .map_err(|e| e.to_string())?;
         }
 
         self.compile_decls(match self.program {

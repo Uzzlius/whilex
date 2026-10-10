@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use inkwell::passes::PassBuilderOptions;
 use whilex;
 
 use inkwell::context::Context;
@@ -23,7 +24,8 @@ pub struct CompileConfig {
     target_triple: String,
     sysroot: Option<PathBuf>,
     cpu: String,
-    features: String
+    features: String, 
+    print_ir: bool
 }
 
 #[derive(Debug, Parser)]
@@ -55,6 +57,10 @@ struct Cli {
     /// Target features
     #[arg(long)]
     features: Option<String>,
+
+    /// Print ir to stdout
+    #[arg(long)]
+    print_ir: bool
 }
 
 impl CompileConfig {
@@ -100,11 +106,14 @@ impl CompileConfig {
             sysroot: cli.sysroot,
             cpu,
             features,
+            print_ir: cli.print_ir
         })
     }
 }
 
 pub fn compile(config: CompileConfig) -> Result<(), String> {
+    // --- Parse the file
+
     let file_contents = match fs::read_to_string(&config.file_path) {
         Ok(file_contents) => file_contents,
         Err(_) => return Err(String::from("Could not read {config.file_path}")),
@@ -127,9 +136,16 @@ pub fn compile(config: CompileConfig) -> Result<(), String> {
     };
 
 
-    // --- Set up build
+    // --- Do the compiling
 
     let context = Context::create();
+
+    let builder = context.create_builder();
+    let module = context.create_module(&config.file_path);
+
+    Compiler::compile(&context, &builder, &module, &program)?;
+
+    // --- Write and link binary
 
     Target::initialize_all(&InitializationConfig::default());
 
@@ -144,23 +160,16 @@ pub fn compile(config: CompileConfig) -> Result<(), String> {
     ).ok_or("Failed to create machine")?;
 
 
-    // --- Do the compiling
-
-    let builder = context.create_builder();
-    let module = context.create_module("whilex");
-
-    let main_function = match Compiler::compile(&context, &builder, &module, &program) {
-        Ok(function) => function,
-        Err(err) => {
-            return Err(String::from(err));
-        }
-    };
-
-    main_function.print_to_stderr();
-
-    // --- Write and link binary
+    module
+        //.run_passes(passes.join(",").as_str(), &machine, PassBuilderOptions::create())
+        .run_passes("default<O2>", &machine, PassBuilderOptions::create())
+        .unwrap();
 
     module.verify().map_err(|e| e.to_string())?;
+
+    if config.print_ir {
+        println!("{}", module.print_to_string().to_string_lossy())
+    }
 
     machine.write_to_file(&module, FileType::Object, &config.object_output).map_err(|e| e.to_string())?;
 
